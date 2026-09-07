@@ -31,7 +31,6 @@ def make_rr_reg_arb(WIDTH: int = 6):
     MAX = WIDTH - 1
 
     class RrRegArb(Module):
-        WIDTH = WIDTH
 
         clk = Clock()
         reset_n = Clock()

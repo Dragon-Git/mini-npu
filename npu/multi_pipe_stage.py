@@ -25,8 +25,6 @@ from .common import async_reg, if_, u
 def make_multi_pipe_stage(WIDTH: int = 64, NUM_READERS: int = 2):
 
     class MultiPipeStage(Module):
-        WIDTH = WIDTH
-        NUM_READERS = NUM_READERS
 
         clk = Clock()
         reset_n = Clock()

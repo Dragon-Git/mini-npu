@@ -21,8 +21,6 @@ from .common import zero
 def make_onehot_mux(N: int = 4, W: int = 8):
 
     class OnehotMux(Module):
-        N = N
-        W = W
 
         asrt_clk = Clock()
         asrt_rst_n = Clock()

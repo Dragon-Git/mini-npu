@@ -32,8 +32,6 @@ def make_back_buf(DEPTH: int = 3, WIDTH: int = 64):
     MAXP = DEPTH - 1              # last pointer value (wraps to 0)
 
     class BackBuf(Module):
-        DEPTH = DEPTH
-        WIDTH = WIDTH
 
         clk = Clock()
         reset_n = Clock()

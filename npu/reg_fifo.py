@@ -36,8 +36,6 @@ def make_reg_fifo(FIFO_WIDTH: int = 32, FIFO_DEPTH: int = 16):
     MAXP = FIFO_DEPTH - 1
 
     class RegFifo(Module):
-        FIFO_WIDTH = FIFO_WIDTH
-        FIFO_DEPTH = FIFO_DEPTH
 
         clk = Clock()
         reset_n = Clock()

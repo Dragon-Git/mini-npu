@@ -28,7 +28,6 @@ def make_rr_arb(WIDTH: int = 6):
     CTR_W = clog2(WIDTH) if WIDTH > 1 else 1
 
     class RrArb(Module):
-        WIDTH = WIDTH
 
         asrt_clk = Clock()
         asrt_rst_n = Clock()
