@@ -12,7 +12,7 @@
 # (element 0 at the LSB end). The gold wrapper (make_gold_renames.py)
 # provides the matching packed view on the ARM side.
 
-from pycde import Clock, Input, Module, Output, System, generator
+from pycde import Input, Module, Output, System, generator
 from pycde.types import Bits
 
 from .common import zero
@@ -22,8 +22,6 @@ def make_onehot_mux(N: int = 4, W: int = 8):
 
     class OnehotMux(Module):
 
-        asrt_clk = Clock()
-        asrt_rst_n = Clock()
         s_i = Input(Bits(N))
         d_i = Input(Bits(N * W))
         m_o = Output(Bits(W))

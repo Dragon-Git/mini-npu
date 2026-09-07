@@ -10,7 +10,7 @@
 # plumbing and carry no logic; we keep identically-named (unused) ports so
 # the port lists of gold and gate line up for EQY.
 
-from pycde import Clock, Input, Module, Output, System, generator
+from pycde import Input, Module, Output, System, generator
 from pycde.types import Bits
 
 from .common import clog2
@@ -22,8 +22,6 @@ def make_bin2onehot(ONEHOT_W: int = 128):
 
     class Bin2Onehot(Module):
         # Ports match rtl_ref/ethosu55_bin2onehot.sv exactly.
-        asrt_clk = Clock()
-        asrt_rst_n = Clock()
         bin_i = Input(Bits(BIN_W))
         vec_o = Output(Bits(ONEHOT_W))
 

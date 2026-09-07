@@ -19,7 +19,7 @@ from pycde import Clock, Input, Module, Output, System, generator
 from pycde.constructs import Wire
 from pycde.types import Bits
 
-from .common import async_reg, if_, u
+from .common import async_reg, if_
 
 
 def make_multi_pipe_stage(WIDTH: int = 64, NUM_READERS: int = 2):

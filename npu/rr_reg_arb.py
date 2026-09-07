@@ -54,9 +54,7 @@ def make_rr_reg_arb(WIDTH: int = 6):
             r = async_reg(nxt, ports.clk, ports.reset_n, name="rr_counter")
             q.assign(r.as_bits(CTR_W))
 
-            arb = rr_arb_mod(asrt_clk=ports.clk,
-                             asrt_rst_n=ports.reset_n,
-                             rr_counter_i=q.as_bits(CTR_W),
+            arb = rr_arb_mod(rr_counter_i=q.as_bits(CTR_W),
                              requests_i=ports.requests_i)
             ports.arb_o = arb.arb_o
 
