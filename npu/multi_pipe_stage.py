@@ -51,7 +51,7 @@ def make_multi_pipe_stage(WIDTH: int = 64, NUM_READERS: int = 2):
             for i in range(n):
                 rdy = (~s_valid[i] | ports.out_ready_i[i]).as_bits(1)
                 i_in_ready_bits.append(rdy)
-            i_in_ready = Bits.concat(list(reversed(i_in_ready_bits)))
+            i_in_ready = ports.in_data_i.concat(list(reversed(i_in_ready_bits)))
             in_ready = i_in_ready.and_reduce()  # &i_in_ready
 
             nxt_valid_bits = []
@@ -60,7 +60,7 @@ def make_multi_pipe_stage(WIDTH: int = 64, NUM_READERS: int = 2):
                     if_(in_valid & in_ready, u(1, 1),
                         if_(ports.out_ready_i[i], u(1, 0),
                             s_valid[i].as_bits(1))))
-            nxt_valid = Bits.concat(list(reversed(nxt_valid_bits)))
+            nxt_valid = ports.in_data_i.concat(list(reversed(nxt_valid_bits)))
 
             advance = in_valid & in_ready
             nxt_data = if_(advance, ports.in_data_i, s_data.as_bits(WIDTH))
