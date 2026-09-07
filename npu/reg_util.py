@@ -65,11 +65,12 @@ def async_reg(next_value, clk, rst_n, name: str | None = None):
     """Register `next_value` with async active-low reset to zero.
 
     Mirrors: always_ff @(posedge clk or negedge rst_n) if (!rst_n) q <= '0;
-    Returns the register output signal (BitVectorSignal over the same type).
+    seq.firreg's reset operand is active-HIGH i1, so invert the active-low
+    rst_n here. Returns the register output signal.
     """
     w = next_value.type.width
     return seq.FirRegOp(next_value.value, clk.value, name or "reg",
-                        reset=rst_n.value,
+                        reset=(~rst_n).value,
                         resetValue=Bits(w)(0).value,
                         isAsync=True)
 
@@ -78,6 +79,6 @@ def sync_reg(next_value, clk, rst_n, name: str | None = None):
     """Same as async_reg but with a synchronous reset (seq default)."""
     w = next_value.type.width
     return seq.FirRegOp(next_value.value, clk.value, name or "reg",
-                        reset=rst_n.value,
+                        reset=(~rst_n).value,
                         resetValue=Bits(w)(0).value,
                         isAsync=False)

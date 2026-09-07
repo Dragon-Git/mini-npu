@@ -34,7 +34,7 @@ def make_back_buf(DEPTH: int = 3, WIDTH: int = 64):
     class BackBuf(Module):
 
         clk = Clock()
-        reset_n = Clock()
+        reset_n = Input(Bits(1))
         in_valid_i = Input(Bits(1))
         in_data_i = Input(Bits(WIDTH))
         out_ready_i = Input(Bits(1))

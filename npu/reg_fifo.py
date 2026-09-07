@@ -38,7 +38,7 @@ def make_reg_fifo(FIFO_WIDTH: int = 32, FIFO_DEPTH: int = 16):
     class RegFifo(Module):
 
         clk = Clock()
-        reset_n = Clock()
+        reset_n = Input(Bits(1))
         flush_i = Input(Bits(1))
         in_valid_i = Input(Bits(1))
         in_data_i = Input(Bits(FIFO_WIDTH))

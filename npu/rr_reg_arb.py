@@ -33,7 +33,7 @@ def make_rr_reg_arb(WIDTH: int = 6):
     class RrRegArb(Module):
 
         clk = Clock()
-        reset_n = Clock()
+        reset_n = Input(Bits(1))
         enable_i = Input(Bits(1))
         requests_i = Input(Bits(WIDTH))
         arb_o = Output(Bits(WIDTH))

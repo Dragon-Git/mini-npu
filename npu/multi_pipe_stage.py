@@ -27,7 +27,7 @@ def make_multi_pipe_stage(WIDTH: int = 64, NUM_READERS: int = 2):
     class MultiPipeStage(Module):
 
         clk = Clock()
-        reset_n = Clock()
+        reset_n = Input(Bits(1))
         in_valid_i = Input(Bits(1))
         in_data_i = Input(Bits(WIDTH))
         out_ready_i = Input(Bits(NUM_READERS))
