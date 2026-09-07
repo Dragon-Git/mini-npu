@@ -40,6 +40,7 @@ def main():
     }
     for name, make in builders.items():
         outdir = os.path.join(root, name)
+        os.makedirs(outdir, exist_ok=True)
         print(f"=== generating {name} -> {outdir}")
         system = make(output_directory=outdir)
         system.compile()
