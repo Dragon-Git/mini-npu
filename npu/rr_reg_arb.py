@@ -47,9 +47,9 @@ def make_rr_reg_arb(WIDTH: int = 6):
                       u(CTR_W, MAX).as_uint(CTR_W)).as_bits(1)
             nxt = if_(en,
                       if_(ge_max,
-                          Bits(CTR_W)(0),
+                          Bits(CTR_W)(0).as_uint(CTR_W),
                           (q.as_uint(CTR_W) + 1).as_uint(CTR_W)),
-                      q.as_bits(CTR_W))
+                      q.as_bits(CTR_W).as_uint(CTR_W))
 
             r = async_reg(nxt, ports.clk, ports.reset_n, name="rr_counter")
             q.assign(r.as_bits(CTR_W))
