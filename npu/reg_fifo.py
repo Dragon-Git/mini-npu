@@ -61,8 +61,10 @@ def make_reg_fifo(FIFO_WIDTH: int = 32, FIFO_DEPTH: int = 16):
             in_valid = ports.in_valid_i
             out_ready = ports.out_ready_i
 
-            fifo_empty = (data_cnt == u(CNT_W, 0)).as_bits(1)
-            fifo_full = (data_cnt == u(CNT_W, FIFO_DEPTH)).as_bits(1)
+            fifo_empty = (data_cnt.as_uint(CNT_W) ==
+                          u(CNT_W, 0).as_uint(CNT_W)).as_bits(1)
+            fifo_full = (data_cnt.as_uint(CNT_W) ==
+                         u(CNT_W, FIFO_DEPTH).as_uint(CNT_W)).as_bits(1)
 
             fifo_write = in_valid & ~fifo_full
             fifo_read = out_ready & ~fifo_empty
@@ -73,7 +75,8 @@ def make_reg_fifo(FIFO_WIDTH: int = 32, FIFO_DEPTH: int = 16):
 
             # memory slots
             for i in range(FIFO_DEPTH):
-                en = fifo_write & (wr_ptr == u(LOG2D, i)).as_bits(1)
+                en = fifo_write & (wr_ptr.as_uint(LOG2D) ==
+                                   u(LOG2D, i).as_uint(LOG2D)).as_bits(1)
                 nxt = if_(en, ports.in_data_i, memory[i].as_bits(FIFO_WIDTH))
                 r = async_reg(nxt, ports.clk, ports.reset_n, name=f"mem{i}")
                 memory[i].assign(r.as_bits(FIFO_WIDTH))
@@ -84,29 +87,32 @@ def make_reg_fifo(FIFO_WIDTH: int = 32, FIFO_DEPTH: int = 16):
                 if out_sel is None:
                     out_sel = memory[i].as_bits(FIFO_WIDTH)
                 else:
-                    sel = (rd_ptr == u(LOG2D, i)).as_bits(1)
+                    sel = (rd_ptr.as_uint(LOG2D) ==
+                           u(LOG2D, i).as_uint(LOG2D)).as_bits(1)
                     out_sel = if_(sel, memory[i].as_bits(FIFO_WIDTH), out_sel)
             ports.out_data_o = out_sel
 
             # pointers
-            wr_max = (wr_ptr == u(LOG2D, MAXP)).as_bits(1)
-            rd_max = (rd_ptr == u(LOG2D, MAXP)).as_bits(1)
-            nxt_wr = if_(flush, u(LOG2D, 0),
-                         if_(fifo_write & wr_max, u(LOG2D, 0),
+            wr_max = (wr_ptr.as_uint(LOG2D) ==
+                      u(LOG2D, MAXP).as_uint(LOG2D)).as_bits(1)
+            rd_max = (rd_ptr.as_uint(LOG2D) ==
+                      u(LOG2D, MAXP).as_uint(LOG2D)).as_bits(1)
+            nxt_wr = if_(flush, Bits(LOG2D)(0),
+                         if_(fifo_write & wr_max, Bits(LOG2D)(0),
                              if_(fifo_write,
                                  (wr_ptr.as_uint(LOG2D) + 1)
                                  .as_uint(LOG2D),
-                                 wr_ptr)))
-            nxt_rd = if_(flush, u(LOG2D, 0),
-                         if_(fifo_read & rd_max, u(LOG2D, 0),
+                                 wr_ptr.as_bits(LOG2D))))
+            nxt_rd = if_(flush, Bits(LOG2D)(0),
+                         if_(fifo_read & rd_max, Bits(LOG2D)(0),
                              if_(fifo_read,
                                  (rd_ptr.as_uint(LOG2D) + 1)
                                  .as_uint(LOG2D),
-                                 rd_ptr)))
+                                 rd_ptr.as_bits(LOG2D))))
             # data_cnt next (CNT_W wide arithmetic)
             dec = (data_cnt.as_uint(CNT_W) - 1).as_uint(CNT_W)
             inc = (data_cnt.as_uint(CNT_W) + 1).as_uint(CNT_W)
-            nxt_cnt = if_(flush, u(CNT_W, 0),
+            nxt_cnt = if_(flush, Bits(CNT_W)(0),
                           if_(fifo_read & ~fifo_write & ~fifo_empty,
                               dec,
                               if_(fifo_write & ~fifo_read & ~fifo_full,

@@ -43,12 +43,13 @@ def make_rr_reg_arb(WIDTH: int = 6):
             q = Wire(Bits(CTR_W), "rr_counter")
 
             en = ports.enable_i
-            ge_max = (q.as_uint(CTR_W) >= u(CTR_W, MAX).as_uint(CTR_W)).as_bits(1)
+            ge_max = (q.as_uint(CTR_W) >=
+                      u(CTR_W, MAX).as_uint(CTR_W)).as_bits(1)
             nxt = if_(en,
                       if_(ge_max,
-                          u(CTR_W, 0),
+                          Bits(CTR_W)(0),
                           (q.as_uint(CTR_W) + 1).as_uint(CTR_W)),
-                      q)
+                      q.as_bits(CTR_W))
 
             r = async_reg(nxt, ports.clk, ports.reset_n, name="rr_counter")
             q.assign(r.as_bits(CTR_W))

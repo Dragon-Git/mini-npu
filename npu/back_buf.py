@@ -71,22 +71,24 @@ def make_back_buf(DEPTH: int = 3, WIDTH: int = 64):
                 s_regs[i].assign(r.as_bits(WIDTH))
 
             # next-pointer logic
-            in_wrap = (s_in_ptr == u(PTR_W, MAXP)).as_bits(1)
-            out_wrap = (s_out_ptr == u(PTR_W, MAXP)).as_bits(1)
+            in_wrap = (s_in_ptr.as_uint(PTR_W) ==
+                       u(PTR_W, MAXP).as_uint(PTR_W)).as_bits(1)
+            out_wrap = (s_out_ptr.as_uint(PTR_W) ==
+                        u(PTR_W, MAXP).as_uint(PTR_W)).as_bits(1)
             nxt_in_ptr = if_(f_put,
-                             if_(in_wrap, u(PTR_W, 0),
+                             if_(in_wrap, Bits(PTR_W)(0),
                                  (s_in_ptr.as_uint(PTR_W) + 1)
                                  .as_uint(PTR_W)),
-                             s_in_ptr)
+                             s_in_ptr.as_bits(PTR_W))
             nxt_out_ptr = if_(f_get,
-                              if_(out_wrap, u(PTR_W, 0),
+                              if_(out_wrap, Bits(PTR_W)(0),
                                   (s_out_ptr.as_uint(PTR_W) + 1)
                                   .as_uint(PTR_W)),
-                              s_out_ptr)
+                              s_out_ptr.as_bits(PTR_W))
             # maybe_full: put&&!get -> 1 ; get&&!put -> 0 ; else hold
-            nxt_mf = if_(f_put & ~f_get, u(1, 1),
-                         if_(f_get & ~f_put, u(1, 0),
-                             s_maybe_full))
+            nxt_mf = if_(f_put & ~f_get, Bits(1)(1),
+                         if_(f_get & ~f_put, Bits(1)(0),
+                             s_maybe_full.as_bits(1)))
 
             rin = async_reg(nxt_in_ptr, ports.clk, ports.reset_n,
                             name="s_in_ptr")
