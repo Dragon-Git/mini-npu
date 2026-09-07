@@ -100,9 +100,10 @@ def make_stream_len():
                         off_z.as_uint(LEN_W)).as_uint(LEN_W)
 
             # rem_len compared against 8-bit values: zero-extend to 29 bits
-            rem_z = ports.rem_len_i
-            unal_z = unal_len.pad_or_truncate(LEN_WORDS_W)
-            burst_z = burst_len.pad_or_truncate(LEN_WORDS_W)
+            rem_z = ports.rem_len_i.as_uint(LEN_WORDS_W)
+            unal_z = unal_len.pad_or_truncate(LEN_WORDS_W).as_uint(LEN_WORDS_W)
+            burst_z = burst_len.pad_or_truncate(LEN_WORDS_W).as_uint(
+                LEN_WORDS_W)
             rem_lt_unal = (rem_z < unal_z).as_bits(1)
             rem_lt_burst = (rem_z < burst_z).as_bits(1)
             rem8 = ports.rem_len_i[0:LEN_W]

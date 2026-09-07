@@ -45,7 +45,7 @@ def make_rr_arb(WIDTH: int = 6):
             below_bits = []
             for i in range(w):
                 below_bits.append(
-                    (ctr.as_uint(CTR_W) > Bits(CTR_W)(i)).as_bits(1))
+                    (ctr.as_uint(CTR_W) > Bits(CTR_W)(i).as_uint(CTR_W)).as_bits(1))
             below = req.concat(list(reversed(below_bits)))  # [w-1:0]
 
             req_long_lo = req & ~below          # requesters i >= ctr
