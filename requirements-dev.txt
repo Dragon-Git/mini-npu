@@ -1,0 +1,2 @@
+pycde==0.11.0; platform_machine=="x86_64"
+pytest>=7

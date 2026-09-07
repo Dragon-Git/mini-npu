@@ -1,0 +1,21 @@
+# EQY: ARM ethosu55_reg_fifo (gold) vs PyCDE reg_fifo (gate)
+
+[options]
+
+[gold]
+read_verilog build/gold_ref/reg_fifo_gold.sv
+prep -top reg_fifo_gold
+
+[gate]
+read_verilog build/reg_fifo/reg_fifo.sv
+prep -top reg_fifo
+
+[match reg_fifo_gold reg_fifo]
+
+[collect reg_fifo_gold reg_fifo]
+
+[partition reg_fifo_gold reg_fifo]
+
+[strategy simple]
+use sat
+depth 10

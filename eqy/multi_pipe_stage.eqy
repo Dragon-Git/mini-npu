@@ -1,0 +1,21 @@
+# EQY: ARM ethosu55_multi_pipe_stage (gold) vs PyCDE multi_pipe_stage (gate)
+
+[options]
+
+[gold]
+read_verilog build/gold_ref/multi_pipe_stage_gold.sv
+prep -top multi_pipe_stage_gold
+
+[gate]
+read_verilog build/multi_pipe_stage/multi_pipe_stage.sv
+prep -top multi_pipe_stage
+
+[match multi_pipe_stage_gold multi_pipe_stage]
+
+[collect multi_pipe_stage_gold multi_pipe_stage]
+
+[partition multi_pipe_stage_gold multi_pipe_stage]
+
+[strategy simple]
+use sat
+depth 10

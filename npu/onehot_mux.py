@@ -1,0 +1,48 @@
+# Equivalence target: rtl_ref/ethosu55_onehot_mux.sv
+#
+#   module #(N, T = logic[0:0], DIS_ASRT) (
+#     input  asrt_clk, asrt_rst_n,
+#     input  [N-1:0] s_i,
+#     input  T d_i [N-1:0],
+#     output T m_o);
+#   m_tmp[j] = |(s_i & d_trans[j]);   // one-hot select, OR of masked inputs
+#
+# We fix T = logic [W-1:0] (the parameterized-type case is unrolled per
+# instance in the RTL too). d_i arrives as a single packed [N*W-1:0] vector
+# (hw.array is passed as one wire by the exporter); bit layout: element i
+# occupies bits [i*W +: W].
+
+from pycde import Clock, Module, System
+from pycde.types import Bits
+
+from .common import clog2, zero
+
+
+def make_onehot_mux(N: int = 4, W: int = 8):
+
+    class OnehotMux(Module):
+        N = N
+        W = W
+
+        asrt_clk = Clock()
+        asrt_rst_n = Clock()
+        s_i = Input(Bits(N))
+        d_i = Input(Bits(N * W))
+        m_o = Output(Bits(W))
+
+        @generator
+        def construct(ports):
+            m = zero(W)
+            for i in range(N):
+                sel = ports.s_i[i].as_bits(1)
+                di = ports.d_i[i * W:(i + 1) * W]  # slice [i*W +: W]
+                m = m | (sel.pad_or_truncate(W) & di)
+            ports.m_o = m
+
+    return OnehotMux
+
+
+def make_onehot_mux_system(N: int = 4, W: int = 8, output_directory: str = None):
+    top = make_onehot_mux(N, W)
+    return System([top], name="onehot_mux",
+                  output_directory=output_directory or "build/onehot_mux")

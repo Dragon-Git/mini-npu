@@ -1,0 +1,23 @@
+# EQY: ARM ethosu55_or_tree_w6 (gold) vs PyCDE or_tree_w6 (gate)
+# Gold needs the ethosu55_cdc_or2 cell definition.
+
+[options]
+
+[gold]
+read_verilog rtl_ref/ethosu55_cdc_or2.sv
+read_verilog build/gold_ref/or_tree_w6_gold.sv
+prep -top or_tree_w6_gold
+
+[gate]
+read_verilog build/or_tree_w6/or_tree_w6.sv
+prep -top or_tree_w6
+
+[match or_tree_w6_gold or_tree_w6]
+
+[collect or_tree_w6_gold or_tree_w6]
+
+[partition or_tree_w6_gold or_tree_w6]
+
+[strategy simple]
+use sat
+depth 5

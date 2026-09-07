@@ -1,0 +1,22 @@
+# EQY: ARM ethosu55_bin2onehot (gold, 3-valued) vs PyCDE bin2onehot (gate)
+# Gold = ARM RTL with x-prop semantics (legalizes the case default arms).
+
+[options]
+
+[gold]
+read_verilog build/gold_ref/bin2onehot_gold.sv
+prep -top bin2onehot_gold
+
+[gate]
+read_verilog build/bin2onehot/bin2onehot.sv
+prep -top bin2onehot
+
+[match bin2onehot_gold bin2onehot]
+
+[collect bin2onehot_gold bin2onehot]
+
+[partition bin2onehot_gold bin2onehot]
+
+[strategy simple]
+use sat
+depth 5

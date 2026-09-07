@@ -1,0 +1,22 @@
+# EQY: ARM ethosu55_onehot_mux (gold) vs PyCDE onehot_mux (gate)
+# N=4, W=8 instantiation of the parameterized reference.
+
+[options]
+
+[gold]
+read_verilog build/gold_ref/onehot_mux_gold.sv
+prep -top onehot_mux_gold
+
+[gate]
+read_verilog build/onehot_mux/onehot_mux.sv
+prep -top onehot_mux
+
+[match onehot_mux_gold onehot_mux]
+
+[collect onehot_mux_gold onehot_mux]
+
+[partition onehot_mux_gold onehot_mux]
+
+[strategy simple]
+use sat
+depth 5

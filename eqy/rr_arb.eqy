@@ -1,0 +1,21 @@
+# EQY: ARM ethosu55_rr_arb (gold) vs PyCDE rr_arb (gate)
+
+[options]
+
+[gold]
+read_verilog build/gold_ref/rr_arb_gold.sv
+prep -top rr_arb_gold
+
+[gate]
+read_verilog build/rr_arb/rr_arb.sv
+prep -top rr_arb
+
+[match rr_arb_gold rr_arb]
+
+[collect rr_arb_gold rr_arb]
+
+[partition rr_arb_gold rr_arb]
+
+[strategy simple]
+use sat
+depth 5

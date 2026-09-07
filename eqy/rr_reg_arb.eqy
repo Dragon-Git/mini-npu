@@ -1,0 +1,28 @@
+# EQY: ARM ethosu55_rr_reg_arb (gold) vs PyCDE rr_reg_arb (gate)
+# Gold side instantiates ethosu55_rr_arb (original name kept); the renamed
+# top-level wrapper (rr_reg_arb_gold) references it, so the plain rr_arb
+# source is also read here. The inner rr_arb partition is verified by its
+# own job; here collect maps the instance onto the already-proven gate.
+
+[options]
+
+[gold]
+read_verilog build/gold_ref/rr_arb_gold.sv
+read_verilog build/gold_ref/rr_reg_arb_gold.sv
+prep -top rr_reg_arb_gold
+
+[gate]
+read_verilog build/rr_arb/rr_arb.sv
+read_verilog build/rr_reg_arb/rr_reg_arb.sv
+prep -top rr_reg_arb
+
+[match rr_reg_arb_gold rr_reg_arb]
+
+[collect rr_arb_gold rr_arb]
+[collect rr_reg_arb_gold rr_reg_arb]
+
+[partition rr_reg_arb_gold rr_reg_arb]
+
+[strategy simple]
+use sat
+depth 8

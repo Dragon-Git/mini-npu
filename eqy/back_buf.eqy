@@ -1,0 +1,21 @@
+# EQY: ARM ethosu55_back_buf (gold) vs PyCDE back_buf (gate)
+
+[options]
+
+[gold]
+read_verilog build/gold_ref/back_buf_gold.sv
+prep -top back_buf_gold
+
+[gate]
+read_verilog build/back_buf/back_buf.sv
+prep -top back_buf
+
+[match back_buf_gold back_buf]
+
+[collect back_buf_gold back_buf]
+
+[partition back_buf_gold back_buf]
+
+[strategy simple]
+use sat
+depth 10

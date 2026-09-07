@@ -1,0 +1,98 @@
+name: equiv
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  gen:
+    name: Generate SV with PyCDE
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install PyCDE
+        run: pip install pycde==0.11.0
+
+      - name: Generate SystemVerilog
+        run: python3 script/gen_sv.py build
+
+      - name: Stage gold + gate
+        run: |
+          python3 script/make_gold_renames.py
+          python3 script/make_gold_wrapper_stream_len.py
+
+      - name: Upload generated SV
+        uses: actions/upload-artifact@v5
+        with:
+          name: generated-sv
+          path: |
+            build/bin2onehot/
+            build/onehot_mux/
+            build/rr_arb/
+            build/rr_reg_arb/
+            build/or_tree_w6/
+            build/back_buf/
+            build/reg_fifo/
+            build/multi_pipe_stage/
+            build/stream_len/
+            build/gold_ref/
+          retention-days: 7
+
+      # Fail fast: lint the generated code even if equivalence runs after.
+      - name: Smoke-read generated SV
+        run: head -40 build/gold/rr_arb/rr_arb.sv
+
+  equiv:
+    name: EQY ${{ matrix.module }}
+    runs-on: ubuntu-latest
+    needs: gen
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [bin2onehot, onehot_mux, rr_arb, rr_reg_arb, or_tree_w6,
+                 back_buf, reg_fifo, multi_pipe_stage, stream_len]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download generated SV
+        uses: actions/download-artifact@v6
+        with:
+          name: generated-sv
+          path: build
+
+      - name: Install oss-cad-suite (yosys + eqy + sby)
+        run: |
+          TAG=$(curl -s https://api.github.com/repos/YosysHQ/oss-cad-suite-build/releases/latest | python3 -c "import json,sys; print(json.load(sys.stdin)['tag_name'])")
+          curl -sL -o /tmp/ocs.tgz "https://github.com/YosysHQ/oss-cad-suite-build/releases/download/${TAG}/oss-cad-suite-linux-x64-${TAG#*-}.tgz"
+          tar -xzf /tmp/ocs.tgz -C /opt
+          echo "/opt/oss-cad-suite/bin" >> "$GITHUB_PATH"
+
+      - name: Show tool versions
+        run: |
+          yosys -V
+          eqy --version
+
+      - name: Run EQY
+        run: |
+          set -o pipefail
+          eqy -f eqy/${{ matrix.module }}.eqy 2>&1 | tee eqy_${{ matrix.module }}.log
+          test -f PASS || { echo "::error::EQY did not pass for ${{ matrix.module }}"; tail -50 eqy_${{ matrix.module }}.log; exit 1; }
+          cat PASS
+      - name: Upload EQY log
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: eqy-log-${{ matrix.module }}
+          path: |
+            eqy_${{ matrix.module }}.log
+            PASS
+            FAIL
+          if-no-files-found: ignore
+          retention-days: 7

@@ -1,0 +1,29 @@
+# EQY: ARM ethosu55_dma_stream_len (gold) vs PyCDE stream_len (gate)
+# Gold is the packed wrapper (module stream_len_gold) which adapts the
+# unpacked axi_config_t port to the [87:0] packed port of the PyCDE gate.
+# ARM packages must be read first (types + get_max_beats function).
+
+[options]
+
+[gold]
+read_verilog rtl_ref/pkg/ethosu55_pkg.sv
+read_verilog rtl_ref/pkg/ethosu55_cc_reg_pkg.sv
+read_verilog rtl_ref/pkg/ethosu55_cc_tsu_pkg.sv
+read_verilog rtl_ref/pkg/ethosu55_dma_pkg.sv
+read_verilog build/gold_ref/stream_len_gold.sv
+read_verilog build/gold_ref/stream_len_gold_wrapper.sv
+prep -top stream_len_gold
+
+[gate]
+read_verilog build/stream_len/stream_len.sv
+prep -top stream_len
+
+[match stream_len_gold stream_len]
+
+[collect stream_len_gold stream_len]
+
+[partition stream_len_gold stream_len]
+
+[strategy simple]
+use sat
+depth 10

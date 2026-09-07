@@ -1,0 +1,10 @@
+build/
+__pycache__/
+*.pyc
+.eqy*
+PASS
+FAIL
+UNKNOWN
+ERROR
+TIMEOUT
+status
