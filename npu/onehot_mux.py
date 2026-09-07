@@ -1,21 +1,21 @@
 # Equivalence target: rtl_ref/ethosu55_onehot_mux.sv
 #
-#   module #(N, T = logic[0:0], DIS_ASRT) (
+#   module #(N, T = logic[0:0]) (
 #     input  asrt_clk, asrt_rst_n,
 #     input  [N-1:0] s_i,
 #     input  T d_i [N-1:0],
 #     output T m_o);
-#   m_tmp[j] = |(s_i & d_trans[j]);   // one-hot select, OR of masked inputs
+#   // for each bit j: m = |(s_i & d_transposed_j)
 #
-# We fix T = logic [W-1:0] (the parameterized-type case is unrolled per
-# instance in the RTL too). d_i arrives as a single packed [N*W-1:0] vector
-# (hw.array is passed as one wire by the exporter); bit layout: element i
-# occupies bits [i*W +: W].
+# We fix T = logic [W-1:0]. The unpacked array port d_i is passed as a
+# single packed [N*W-1:0] vector: element i occupies bits [i*W +: W]
+# (element 0 at the LSB end). The gold wrapper (make_gold_renames.py)
+# provides the matching packed view on the ARM side.
 
 from pycde import Clock, Module, System
 from pycde.types import Bits
 
-from .common import clog2, zero
+from .common import zero
 
 
 def make_onehot_mux(N: int = 4, W: int = 8):
@@ -32,12 +32,14 @@ def make_onehot_mux(N: int = 4, W: int = 8):
 
         @generator
         def construct(ports):
-            m = zero(W)
+            acc = zero(W)
             for i in range(N):
                 sel = ports.s_i[i].as_bits(1)
                 di = ports.d_i[i * W:(i + 1) * W]  # slice [i*W +: W]
-                m = m | (sel.pad_or_truncate(W) & di)
-            ports.m_o = m
+                # sel & d_i[i], zero-extended to W bits, then OR-accumulate
+                masked = sel.pad_or_truncate(W) & di
+                acc = acc | masked
+            ports.m_o = acc
 
     return OnehotMux
 

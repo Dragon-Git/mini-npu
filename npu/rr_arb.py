@@ -1,62 +1,73 @@
 # Equivalence target: rtl_ref/ethosu55_rr_arb.sv
 #
-#   module #(WIDTH = 6, ALLOW_REQ_X) (
+#   module #(WIDTH, ALLOW_REQ_X) (
 #     input  asrt_clk, asrt_rst_n,
-#     input  [clog2(WIDTH)-1:0] rr_counter_i,
+#     input  [$clog2(WIDTH)-1:0] rr_counter_i,
 #     input  [WIDTH-1:0] requests_i,
 #     output [WIDTH-1:0] arb_o);
 #
-# Round-robin arbiter, combinational. The RTL doubles the request vector
-# ({requests & below_cnt, requests & ~below_cnt}) and finds the first set
-# bit with a prefix-OR priority chain:
-#   arb = first_req(req_long[0+:WIDTH]) | first_req(req_long[WIDTH+:WIDTH])
-# We build the identical prefix chain bit-by-bit.
+#   req_below_counter[i] = (i < rr_counter_i)
+#   req_long = {requests_i & req_below_counter,     // high half: i <  ctr
+#               requests_i & ~req_below_counter}    // low  half: i >= ctr
+#   req_long_lower_set[0] = 0
+#   req_long_lower_set[i] = req_long[i-1] | req_long_lower_set[i-1]
+#   arb_o = (req_long[W-1:0]     & ~req_long_lower_set[W-1:0]) |
+#           (req_long[2*W-1:W]   & ~req_long_lower_set[2*W-1:W])
+#
+# Pure combinational rotating-priority arbiter. Bit i of the low half
+# corresponds to requester (ctr + i) mod W.
 
 from pycde import Clock, Module, System
 from pycde.types import Bits
 
-from .common import clog2, zero
+from .common import clog2
 
 
 def make_rr_arb(WIDTH: int = 6):
 
-    CNT_W = clog2(WIDTH) if WIDTH > 1 else 1
+    CTR_W = clog2(WIDTH) if WIDTH > 1 else 1
 
     class RrArb(Module):
         WIDTH = WIDTH
-        CNT_W = CNT_W
 
         asrt_clk = Clock()
         asrt_rst_n = Clock()
-        rr_counter_i = Input(Bits(CNT_W))
+        rr_counter_i = Input(Bits(CTR_W))
         requests_i = Input(Bits(WIDTH))
         arb_o = Output(Bits(WIDTH))
 
         @generator
         def construct(ports):
-            reqs = ports.requests_i
-            cnt = ports.rr_counter_i
+            w = WIDTH
+            req = ports.requests_i
+            ctr = ports.rr_counter_i
 
             # req_below_counter[i] = (i < rr_counter_i)
-            below = [(cnt > Bits(CNT_W)(i)).as_bits(1) for i in range(WIDTH)]
+            below_bits = []
+            for i in range(w):
+                below_bits.append((ctr.as_uint(CTR_W) > i).as_bits(1))
+            below = Bits.concat(list(reversed(below_bits)))  # [w-1:0]
 
-            # SV: req_long = {requests & below, requests & ~below}
-            # LSB half (indices [0:WIDTH])      = requests & ~below (i >= cnt)
-            # MSB half (indices [WIDTH:2WIDTH]) = requests &  below (i <  cnt)
-            req_long = [(reqs[i] & ~below[i]).as_bits(1) for i in range(WIDTH)] + \
-                       [(reqs[i] & below[i]).as_bits(1) for i in range(WIDTH)]
+            req_long_lo = req & ~below          # requesters i >= ctr
+            req_long_hi = req & below           # requesters i <  ctr
+            # req_long = {hi, lo}: hi occupies [2w-1:w], lo occupies [w-1:0]
+            req_long = Bits.concat([req_long_hi, req_long_lo])  # [2w-1:0]
 
-            # prefix-OR "lower set" chain over 2*WIDTH bits
-            lower = [zero(1)]
-            for i in range(1, 2 * WIDTH):
-                lower.append((lower[i - 1] | req_long[i - 1]).as_bits(1))
+            # prefix-OR shifted by one: lower_set[i] = |req_long[i-1:0]
+            lower_bits = []
+            run = None
+            for i in range(2 * w):
+                bit_i = req_long[i].as_bits(1)
+                if i == 0:
+                    lower_bits.append(Bits(1)(0))
+                    run = bit_i
+                else:
+                    lower_bits.append(run)
+                    run = run | bit_i
+            lower_set = Bits.concat(list(reversed(lower_bits)))  # [2w-1:0]
 
-            first = [(req_long[i] & ~lower[i]).as_bits(1)
-                     for i in range(2 * WIDTH)]
-
-            arb_bits = [(first[i] | first[i + WIDTH]).as_bits(1)
-                        for i in range(WIDTH)]
-            ports.arb_o = Bits.concat(list(reversed(arb_bits)))
+            arb = (req_long & ~lower_set)
+            ports.arb_o = arb[0:w] | arb[w:2 * w]
 
     return RrArb
 

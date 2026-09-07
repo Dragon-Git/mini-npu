@@ -10,7 +10,6 @@
 # plumbing and carry no logic; we keep identically-named (unused) ports so
 # the port lists of gold and gate line up for EQY.
 
-import pycde
 from pycde import Clock, Module, System
 from pycde.types import Bits
 
@@ -34,7 +33,7 @@ def make_bin2onehot(ONEHOT_W: int = 128):
             parts = []
             for v in range(ONEHOT_W):
                 parts.append((bin_v == Bits(BIN_W)(v)).as_bits(1))
-            # concat(msb..lsb) -> parts[ONEHOT_W-1] is the MSB end
+            # Bits.concat takes a list ordered MSB-first.
             ports.vec_o = Bits.concat(list(reversed(parts)))
 
     return Bin2Onehot

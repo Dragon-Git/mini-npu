@@ -1,45 +1,43 @@
 # Equivalence target: rtl_ref/ethosu55_reg_fifo.sv
 #
 #   module #(FIFO_WIDTH=32, FIFO_DEPTH=16, EN_COLLISION=0, EN_DATA_X=0) (
-#     clk, reset_n, flush_i, in_valid_i, in_data_i, in_ready_o,
-#     out_valid_o, out_data_o, out_ready_i, data_cnt_o[$clog2(D):0]);
+#     input  clk, reset_n, flush_i, in_valid_i, [W-1:0] in_data_i,
+#     output in_ready_o, out_valid_o, [W-1:0] out_data_o,
+#     input  out_ready_i, output [$clog2(D):0] data_cnt_o);
 #
-# Register-based FIFO: wr/rd pointers + data counter + per-slot write
-# enables. Key equations (EN_COLLISION=0 default):
-#   fifo_write = in_valid & ~full ; in_ready = ~full
-#   fifo_read  = out_ready & ~empty ; out_valid = ~empty
-#   max_wr_ptr = wr_ptr == DEPTH-1  (via max_data_cnt trick)
-#   nxt_wr_ptr = flush ? 0 : (write && max) ? 0 : write ? wr+1 : wr
-#   memory[i] write-en = write && (wr_ptr == i); async reset all.
-#   out_data = memory[rd_ptr]; empty/full from data_cnt.
-# data_cnt_o width in RTL: [$clog2(FIFO_DEPTH):0] (LOG2+1 bits).
+# Exact ARM equations (EN_COLLISION = 0):
+#   fifo_write  = in_valid & ~full
+#   in_ready_o  = ~full
+#   fifo_read   = out_ready & ~empty
+#   out_valid_o = ~empty
+#   fifo_empty  = (data_cnt == 0)     (data_cnt is LOG2+1 bits)
+#   fifo_full   = (data_cnt == DEPTH)
+#   wr_ptr nxt  = flush ? 0 : write&&max ? 0 : write ? wr+1 : wr   (en=flush|write)
+#   rd_ptr nxt  = flush ? 0 : read &&max ? 0 : read ? rd+1 : rd   (en=flush|read)
+#   data_cnt nxt= flush ? 0 : read&&!write&&cnt!=0 ? cnt-1 :
+#                 write&&!read&&cnt!=D ? cnt+1 : cnt            (en=flush|read|write)
+#   memory[i]   = en[i] = write && (wr_ptr == i); q = en ? in_data : q
+#   out_data_o  = memory[rd_ptr]  (decoded mux over slots)
+#
+# The slot memory becomes DEPTH DFFs with decoded enables; out_data_o is a
+# decoded one-hot mux (ethosu55_onehot_mux shape) -- no SV memory cells.
 
 from pycde import Clock, Module, System
-from pycde.constructs import Mux, NamedWire
+from pycde.constructs import Wire
 from pycde.types import Bits
 
-from .common import async_reg, clog2, zero
+from .common import async_reg, clog2, if_, u
 
 
-def _mux_index(slots, ptr, ptr_w):
-    acc = slots[0]
-    for i in range(len(slots) - 1, 0, -1):
-        acc = Mux((ptr == Bits(ptr_w)(i)).as_bits(1), slots[i], acc)
-    return acc
+def make_reg_fifo(FIFO_WIDTH: int = 32, FIFO_DEPTH: int = 16):
 
-
-def make_reg_fifo(FIFO_WIDTH: int = 32, FIFO_DEPTH: int = 16,
-                  EN_COLLISION: int = 0):
-
-    LOG2_DEPTH = clog2(FIFO_DEPTH)
-    assert (FIFO_DEPTH & (FIFO_DEPTH - 1)) == 0, \
-        "RTL nxt_data_cnt arithmetic assumes power-of-two depth"
+    LOG2D = clog2(FIFO_DEPTH)
+    CNT_W = LOG2D + 1
+    MAXP = FIFO_DEPTH - 1
 
     class RegFifo(Module):
         FIFO_WIDTH = FIFO_WIDTH
         FIFO_DEPTH = FIFO_DEPTH
-        LOG2_DEPTH = LOG2_DEPTH
-        EN_COLLISION = EN_COLLISION
 
         clk = Clock()
         reset_n = Clock()
@@ -50,71 +48,79 @@ def make_reg_fifo(FIFO_WIDTH: int = 32, FIFO_DEPTH: int = 16,
         in_ready_o = Output(Bits(1))
         out_valid_o = Output(Bits(1))
         out_data_o = Output(Bits(FIFO_WIDTH))
-        data_cnt_o = Output(Bits(LOG2_DEPTH + 1))
+        data_cnt_o = Output(Bits(CNT_W))
 
         @generator
         def construct(ports):
-            clk, rst_n = ports.clk, ports.reset_n
-            flush = ports.flush_i.as_bits(1)
-            iv = ports.in_valid_i.as_bits(1)
-            rdy = ports.out_ready_i.as_bits(1)
-            din = ports.in_data_i
+            # state wires
+            wr_ptr = Wire(Bits(LOG2D), "wr_ptr")
+            rd_ptr = Wire(Bits(LOG2D), "rd_ptr")
+            data_cnt = Wire(Bits(CNT_W), "data_cnt")
+            memory = [Wire(Bits(FIFO_WIDTH), f"mem_{i}")
+                      for i in range(FIFO_DEPTH)]
 
-            w_wr = NamedWire(Bits(LOG2_DEPTH), "wr_ptr")
-            w_rd = NamedWire(Bits(LOG2_DEPTH), "rd_ptr")
-            w_cnt = NamedWire(Bits(LOG2_DEPTH + 1), "data_cnt")
+            flush = ports.flush_i
+            in_valid = ports.in_valid_i
+            out_ready = ports.out_ready_i
 
-            q_wr = async_reg(w_wr, clk, rst_n, name="wr_ptr")
-            q_rd = async_reg(w_rd, clk, rst_n, name="rd_ptr")
-            q_cnt = async_reg(w_cnt, clk, rst_n, name="data_cnt")
+            fifo_empty = (data_cnt == u(CNT_W, 0)).as_bits(1)
+            fifo_full = (data_cnt == u(CNT_W, FIFO_DEPTH)).as_bits(1)
 
-            full = (w_cnt == Bits(LOG2_DEPTH + 1)(FIFO_DEPTH)).as_bits(1)
-            empty = (w_cnt == Bits(LOG2_DEPTH + 1)(0)).as_bits(1)
+            fifo_write = in_valid & ~fifo_full
+            fifo_read = out_ready & ~fifo_empty
 
-            if EN_COLLISION:
-                fifo_write = (iv & (~full | rdy)).as_bits(1)
-                in_ready = (~full | rdy).as_bits(1)
-            else:
-                fifo_write = (iv & ~full).as_bits(1)
-                in_ready = ~full
-            fifo_read = (rdy & ~empty).as_bits(1)
-            out_valid = ~empty
+            ports.in_ready_o = (~fifo_full).as_bits(1)
+            ports.out_valid_o = (~fifo_empty).as_bits(1)
+            ports.data_cnt_o = data_cnt.as_bits(CNT_W)
 
-            max_p = Bits(LOG2_DEPTH)(FIFO_DEPTH - 1)
-            one_p = Bits(LOG2_DEPTH)(1)
-            one_c = Bits(LOG2_DEPTH + 1)(1)
-
-            def ptr_next(q, go):
-                return Mux(flush, zero(LOG2_DEPTH),
-                           Mux(go, Mux((q == max_p).as_bits(1),
-                                       zero(LOG2_DEPTH),
-                                       (q + one_p).as_uint(LOG2_DEPTH)),
-                               q))
-
-            w_wr.assign(ptr_next(q_wr, fifo_write))
-            w_rd.assign(ptr_next(q_rd, fifo_read))
-
-            dec = ((fifo_read & ~fifo_write) & ~empty).as_bits(1)
-            inc = ((fifo_write & ~fifo_read) & ~full).as_bits(1)
-            cnt_next = Mux(flush, zero(LOG2_DEPTH + 1),
-                           Mux(dec, (q_cnt - one_c).as_uint(LOG2_DEPTH + 1),
-                               Mux(inc, (q_cnt + one_c).as_uint(LOG2_DEPTH + 1),
-                                   q_cnt)))
-            w_cnt.assign(cnt_next)
-
-            # memory slots (one flop per entry, per-slot write enable)
-            slots = []
+            # memory slots
             for i in range(FIFO_DEPTH):
-                w_slot = NamedWire(Bits(FIFO_WIDTH), f"memory_{i}")
-                q = async_reg(w_slot, clk, rst_n, name=f"memory{i}")
-                en = (fifo_write & (q_wr == Bits(LOG2_DEPTH)(i))).as_bits(1)
-                w_slot.assign(Mux(en, din, q))
-                slots.append(q)
+                en = fifo_write & (wr_ptr == u(LOG2D, i)).as_bits(1)
+                nxt = if_(en, ports.in_data_i, memory[i].as_bits(FIFO_WIDTH))
+                r = async_reg(nxt, ports.clk, ports.reset_n, name=f"mem{i}")
+                memory[i].assign(r.as_bits(FIFO_WIDTH))
 
-            ports.in_ready_o = in_ready
-            ports.out_valid_o = out_valid
-            ports.out_data_o = _mux_index(slots, q_rd, LOG2_DEPTH)
-            ports.data_cnt_o = q_cnt
+            # out_data_o: decoded mux over memory[rd_ptr]
+            out_sel = None
+            for i in range(FIFO_DEPTH - 1, -1, -1):
+                if out_sel is None:
+                    out_sel = memory[i].as_bits(FIFO_WIDTH)
+                else:
+                    sel = (rd_ptr == u(LOG2D, i)).as_bits(1)
+                    out_sel = if_(sel, memory[i].as_bits(FIFO_WIDTH), out_sel)
+            ports.out_data_o = out_sel
+
+            # pointers
+            wr_max = (wr_ptr == u(LOG2D, MAXP)).as_bits(1)
+            rd_max = (rd_ptr == u(LOG2D, MAXP)).as_bits(1)
+            nxt_wr = if_(flush, u(LOG2D, 0),
+                         if_(fifo_write & wr_max, u(LOG2D, 0),
+                             if_(fifo_write,
+                                 (wr_ptr.as_uint(LOG2D) + 1)
+                                 .as_uint(LOG2D),
+                                 wr_ptr)))
+            nxt_rd = if_(flush, u(LOG2D, 0),
+                         if_(fifo_read & rd_max, u(LOG2D, 0),
+                             if_(fifo_read,
+                                 (rd_ptr.as_uint(LOG2D) + 1)
+                                 .as_uint(LOG2D),
+                                 rd_ptr)))
+            # data_cnt next (CNT_W wide arithmetic)
+            dec = (data_cnt.as_uint(CNT_W) - 1).as_uint(CNT_W)
+            inc = (data_cnt.as_uint(CNT_W) + 1).as_uint(CNT_W)
+            nxt_cnt = if_(flush, u(CNT_W, 0),
+                          if_(fifo_read & ~fifo_write & ~fifo_empty,
+                              dec,
+                              if_(fifo_write & ~fifo_read & ~fifo_full,
+                                  inc,
+                                  data_cnt.as_bits(CNT_W))))
+
+            rw = async_reg(nxt_wr, ports.clk, ports.reset_n, name="wr_ptr")
+            rr = async_reg(nxt_rd, ports.clk, ports.reset_n, name="rd_ptr")
+            rc = async_reg(nxt_cnt, ports.clk, ports.reset_n, name="data_cnt")
+            wr_ptr.assign(rw.as_bits(LOG2D))
+            rd_ptr.assign(rr.as_bits(LOG2D))
+            data_cnt.assign(rc.as_bits(CNT_W))
 
     return RegFifo
 

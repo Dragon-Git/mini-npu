@@ -1,20 +1,25 @@
 # Equivalence target: rtl_ref/ethosu55_multi_pipe_stage.sv
 #
 #   module #(WIDTH=64, NUM_READERS=2) (
-#     clk, reset_n, in_valid_i, in_data_i, in_ready_o,
-#     out_valid_o[NUM_READERS], out_data_o, out_ready_i[NUM_READERS]);
+#     input  clk, reset_n,
+#     input  in_valid_i, [WIDTH-1:0] in_data_i,
+#     output in_ready_o, [NUM_READERS-1:0] out_valid_o,
+#     output [WIDTH-1:0] out_data_o,
+#     input  [NUM_READERS-1:0] out_ready_i);
 #
-# Valid/data pipe stage with replicated output valid per reader:
-#   nxt_valid[i] = (in_valid && in_ready) ? 1 : out_ready[i] ? 0 : s_valid[i]
-#   i_in_ready[i]= !s_valid[i] || out_ready[i] ; in_ready = AND over i
-#   data captured when (in_valid && in_ready)
-# Async active-low reset.
+# Exact ARM equations:
+#   nxt_valid[i] = (in_valid && in_ready) ? 1 :
+#                  out_ready[i]           ? 0 : s_valid[i]
+#   i_in_ready[i] = !s_valid[i] || out_ready[i]
+#   in_ready_o    = &i_in_ready
+#   s_valid/s_data <= (async reset 0) nxt_valid / (in_valid&&in_ready ? in_data : s_data)
+#   out_valid_o = s_valid ; out_data_o = s_data
 
 from pycde import Clock, Module, System
-from pycde.constructs import Mux, NamedWire
+from pycde.constructs import Wire
 from pycde.types import Bits
 
-from .common import async_reg, zero
+from .common import async_reg, if_, u
 
 
 def make_multi_pipe_stage(WIDTH: int = 64, NUM_READERS: int = 2):
@@ -34,40 +39,40 @@ def make_multi_pipe_stage(WIDTH: int = 64, NUM_READERS: int = 2):
 
         @generator
         def construct(ports):
-            clk, rst_n = ports.clk, ports.reset_n
-            iv = ports.in_valid_i.as_bits(1)
-            o_rdy = ports.out_ready_i
+            n = NUM_READERS
 
-            w_valid = NamedWire(Bits(NUM_READERS), "s_valid")
-            q_valid = async_reg(w_valid, clk, rst_n, name="s_valid")
-            w_data = NamedWire(Bits(WIDTH), "s_data")
-            q_data = async_reg(w_data, clk, rst_n, name="s_data")
+            s_valid = Wire(Bits(n), "s_valid")
+            s_data = Wire(Bits(WIDTH), "s_data")
 
-            # per-reader next-valid and in_ready
-            in_ready_bits = []
+            in_valid = ports.in_valid_i
+
+            # per-reader ready
+            i_in_ready_bits = []
+            for i in range(n):
+                rdy = (~s_valid[i] | ports.out_ready_i[i]).as_bits(1)
+                i_in_ready_bits.append(rdy)
+            i_in_ready = Bits.concat(list(reversed(i_in_ready_bits)))
+            in_ready = i_in_ready.and_reduce()  # &i_in_ready
+
             nxt_valid_bits = []
-            for i in range(NUM_READERS):
-                rd = o_rdy[i].as_bits(1)
-                # note: RTL uses the *computed* in_ready_o (AND of all
-                # readers) inside nxt_valid; we compute it first, then mux.
-                in_ready_bits.append((~q_valid[i].as_bits(1) | rd).as_bits(1))
-            in_ready = in_ready_bits[0]
-            for i in range(1, NUM_READERS):
-                in_ready = (in_ready & in_ready_bits[i]).as_bits(1)
+            for i in range(n):
+                nxt_valid_bits.append(
+                    if_(in_valid & in_ready, u(1, 1),
+                        if_(ports.out_ready_i[i], u(1, 0),
+                            s_valid[i].as_bits(1))))
+            nxt_valid = Bits.concat(list(reversed(nxt_valid_bits)))
 
-            go = (iv & in_ready).as_bits(1)
-            for i in range(NUM_READERS):
-                rd = o_rdy[i].as_bits(1)
-                nv = Mux(go, Bits(1)(1),
-                         Mux(rd, Bits(1)(0), q_valid[i].as_bits(1)))
-                nxt_valid_bits.append(nv)
-            w_valid.assign(Bits.concat(list(reversed(nxt_valid_bits))))
+            advance = in_valid & in_ready
+            nxt_data = if_(advance, ports.in_data_i, s_data.as_bits(WIDTH))
 
-            w_data.assign(Mux(go, ports.in_data_i, q_data))
+            rv = async_reg(nxt_valid, ports.clk, ports.reset_n, name="s_valid")
+            rd = async_reg(nxt_data, ports.clk, ports.reset_n, name="s_data")
+            s_valid.assign(rv.as_bits(n))
+            s_data.assign(rd.as_bits(WIDTH))
 
             ports.in_ready_o = in_ready
-            ports.out_valid_o = q_valid
-            ports.out_data_o = q_data
+            ports.out_valid_o = rv.as_bits(n)
+            ports.out_data_o = rd.as_bits(WIDTH)
 
     return MultiPipeStage
 

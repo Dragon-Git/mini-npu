@@ -6,6 +6,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+env:
+  OCS_URL_BASE: https://github.com/YosysHQ/oss-cad-suite-build/releases/download
+
 jobs:
   gen:
     name: Generate SV with PyCDE
@@ -26,7 +29,6 @@ jobs:
       - name: Stage gold + gate
         run: |
           python3 script/make_gold_renames.py
-          python3 script/make_gold_wrapper_stream_len.py
 
       - name: Upload generated SV
         uses: actions/upload-artifact@v5
@@ -45,9 +47,14 @@ jobs:
             build/gold_ref/
           retention-days: 7
 
-      # Fail fast: lint the generated code even if equivalence runs after.
+      # Fail fast: sanity-check generated tops exist.
       - name: Smoke-read generated SV
-        run: head -40 build/gold/rr_arb/rr_arb.sv
+        run: |
+          for m in bin2onehot onehot_mux rr_arb rr_reg_arb or_tree_w6 \
+                   back_buf reg_fifo multi_pipe_stage stream_len; do
+            test -f build/$m/$m.sv || { echo "missing build/$m/$m.sv"; exit 1; }
+          done
+          head -40 build/rr_arb/rr_arb.sv
 
   equiv:
     name: EQY ${{ matrix.module }}
@@ -70,7 +77,9 @@ jobs:
       - name: Install oss-cad-suite (yosys + eqy + sby)
         run: |
           TAG=$(curl -s https://api.github.com/repos/YosysHQ/oss-cad-suite-build/releases/latest | python3 -c "import json,sys; print(json.load(sys.stdin)['tag_name'])")
-          curl -sL -o /tmp/ocs.tgz "https://github.com/YosysHQ/oss-cad-suite-build/releases/download/${TAG}/oss-cad-suite-linux-x64-${TAG#*-}.tgz"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          curl -sL -o /tmp/ocs.tgz "$OCS_URL_BASE/${TAG}/oss-cad-suite-linux-x64-${TAG#*-}.tgz"
+          mkdir -p /opt
           tar -xzf /tmp/ocs.tgz -C /opt
           echo "/opt/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
@@ -82,8 +91,9 @@ jobs:
       - name: Run EQY
         run: |
           set -o pipefail
+          rm -f PASS FAIL
           eqy -f eqy/${{ matrix.module }}.eqy 2>&1 | tee eqy_${{ matrix.module }}.log
-          test -f PASS || { echo "::error::EQY did not pass for ${{ matrix.module }}"; tail -50 eqy_${{ matrix.module }}.log; exit 1; }
+          test -f PASS || { echo "::error::EQY did not pass for ${{ matrix.module }}"; tail -80 eqy_${{ matrix.module }}.log; exit 1; }
           cat PASS
       - name: Upload EQY log
         if: always()
