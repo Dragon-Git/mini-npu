@@ -71,7 +71,7 @@ def async_reg(next_value, clk, rst_n, name: str | None = None):
     return seq.FirRegOp(next_value.value, clk.value, name or "reg",
                         reset=rst_n.value,
                         resetValue=Bits(w)(0).value,
-                        isAsync=True).result
+                        isAsync=True)
 
 
 def sync_reg(next_value, clk, rst_n, name: str | None = None):
@@ -80,4 +80,4 @@ def sync_reg(next_value, clk, rst_n, name: str | None = None):
     return seq.FirRegOp(next_value.value, clk.value, name or "reg",
                         reset=rst_n.value,
                         resetValue=Bits(w)(0).value,
-                        isAsync=False).result
+                        isAsync=False)
