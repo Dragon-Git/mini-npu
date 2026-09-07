@@ -43,7 +43,7 @@ def make_rr_reg_arb(WIDTH: int = 6):
             q = Wire(Bits(CTR_W), "rr_counter")
 
             en = ports.enable_i
-            ge_max = (q.as_uint(CTR_W) >= u(CTR_W, MAX)).as_bits(1)
+            ge_max = (q.as_uint(CTR_W) >= u(CTR_W, MAX).as_uint(CTR_W)).as_bits(1)
             nxt = if_(en,
                       if_(ge_max,
                           u(CTR_W, 0),
