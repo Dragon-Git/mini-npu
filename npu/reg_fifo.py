@@ -22,7 +22,7 @@
 # The slot memory becomes DEPTH DFFs with decoded enables; out_data_o is a
 # decoded one-hot mux (ethosu55_onehot_mux shape) -- no SV memory cells.
 
-from pycde import Clock, Module, System
+from pycde import Clock, Input, Module, Output, System, generator
 from pycde.constructs import Wire
 from pycde.types import Bits
 
@@ -126,7 +126,7 @@ def make_reg_fifo(FIFO_WIDTH: int = 32, FIFO_DEPTH: int = 16):
 
 
 def make_reg_fifo_system(FIFO_WIDTH: int = 32, FIFO_DEPTH: int = 16,
-                         output_directory: str = None):
+                         output_directory: str | None = None):
     top = make_reg_fifo(FIFO_WIDTH, FIFO_DEPTH)
     return System([top], name="reg_fifo",
                   output_directory=output_directory or "build/reg_fifo")

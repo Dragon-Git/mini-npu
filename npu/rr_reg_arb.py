@@ -16,11 +16,11 @@
 # Gate hierarchy mirrors the ARM hierarchy 1:1 (rr_reg_arb -> rr_arb) so
 # EQY partitions map onto the inner arbiter naturally.
 
-from pycde import Clock, Module, System
+from pycde import Clock, Input, Module, Output, System, generator
 from pycde.constructs import Wire
 from pycde.types import Bits
 
-from .common import clog2, async_reg, if_, u
+from .common import async_reg, clog2, if_, u
 from .rr_arb import make_rr_arb
 
 
@@ -60,7 +60,7 @@ def make_rr_reg_arb(WIDTH: int = 6):
     return RrRegArb
 
 
-def make_rr_reg_arb_system(WIDTH: int = 6, output_directory: str = None):
+def make_rr_reg_arb_system(WIDTH: int = 6, output_directory: str | None = None):
     top = make_rr_reg_arb(WIDTH)
     return System([top], name="rr_reg_arb",
                   output_directory=output_directory or "build/rr_reg_arb")

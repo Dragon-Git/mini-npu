@@ -17,7 +17,7 @@
 # Pure combinational rotating-priority arbiter. Bit i of the low half
 # corresponds to requester (ctr + i) mod W.
 
-from pycde import Clock, Module, System
+from pycde import Clock, Input, Module, Output, System, generator
 from pycde.types import Bits
 
 from .common import clog2
@@ -72,7 +72,7 @@ def make_rr_arb(WIDTH: int = 6):
     return RrArb
 
 
-def make_rr_arb_system(WIDTH: int = 6, output_directory: str = None):
+def make_rr_arb_system(WIDTH: int = 6, output_directory: str | None = None):
     top = make_rr_arb(WIDTH)
     return System([top], name="rr_arb",
                   output_directory=output_directory or "build/rr_arb")

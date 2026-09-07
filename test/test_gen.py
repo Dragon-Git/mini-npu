@@ -25,7 +25,7 @@ def test_generate_all(tmp_path):
     out = tmp_path / "build"
     res = subprocess.run(
         [sys.executable, os.path.join(ROOT, "script", "gen_sv.py"), str(out)],
-        cwd=ROOT, capture_output=True, text=True)
+        cwd=ROOT, capture_output=True, text=True, check=False)
     assert res.returncode == 0, res.stdout + res.stderr
     for m in MODULES:
         sv = out / m / f"{m}.sv"
@@ -37,14 +37,16 @@ def test_generate_all(tmp_path):
 def test_gold_renames(tmp_path):
     res = subprocess.run(
         [sys.executable, os.path.join(ROOT, "script", "make_gold_renames.py")],
-        cwd=ROOT, capture_output=True, text=True)
+        cwd=ROOT, capture_output=True, text=True, check=False)
     assert res.returncode == 0, res.stdout + res.stderr
     for m in MODULES:
         gold = os.path.join(ROOT, "build", "gold_ref", f"{m}_gold.sv")
         assert os.path.exists(gold), f"missing {gold}"
-        text = open(gold).read()
+        with open(gold) as fh:
+            text = fh.read()
         assert re.search(rf"module\s+{m}_gold\b", text), gold
     # stream_len wrapper
     wrap = os.path.join(ROOT, "build", "gold_ref", "stream_len_gold_wrapper.sv")
     assert os.path.exists(wrap)
-    assert "module stream_len_gold" in open(wrap).read()
+    with open(wrap) as fh:
+        assert "module stream_len_gold" in fh.read()

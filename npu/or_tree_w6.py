@@ -10,7 +10,7 @@
 # provided -- rtl_ref/ethosu55_cdc_or2.sv gives the functional model).
 # We build the same 2-input OR tree shape.
 
-from pycde import Clock, Module, System
+from pycde import Input, Module, Output, System, generator
 from pycde.types import Bits
 
 
@@ -35,7 +35,7 @@ def make_or_tree_w6():
     return OrTreeW6
 
 
-def make_or_tree_w6_system(output_directory: str = None):
+def make_or_tree_w6_system(output_directory: str | None = None):
     top = make_or_tree_w6()
     return System([top], name="or_tree_w6",
                   output_directory=output_directory or "build/or_tree_w6")

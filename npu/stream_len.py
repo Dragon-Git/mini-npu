@@ -28,7 +28,7 @@
 # an element (struct packed {u8 max_outst_wr; u8 max_outst_rd; u4 memtype;
 # u2 max_beats;}) the first member is the MSB, so max_beats = elem[21:20].
 
-from pycde import Clock, Module, System
+from pycde import Clock, Input, Module, Output, System, generator
 from pycde.constructs import Mux
 from pycde.types import Bits
 
@@ -117,7 +117,7 @@ def make_stream_len():
     return StreamLen
 
 
-def make_stream_len_system(output_directory: str = None):
+def make_stream_len_system(output_directory: str | None = None):
     top = make_stream_len()
     return System([top], name="stream_len",
                   output_directory=output_directory or "build/stream_len")

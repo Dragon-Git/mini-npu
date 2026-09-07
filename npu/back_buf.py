@@ -19,7 +19,7 @@
 # modelling needed (each slot is addressed by a decoded enable), which
 # keeps the equivalence partition simple.
 
-from pycde import Clock, Module, System
+from pycde import Clock, Input, Module, Output, System, generator
 from pycde.constructs import Wire
 from pycde.types import Bits
 
@@ -104,7 +104,7 @@ def make_back_buf(DEPTH: int = 3, WIDTH: int = 64):
 
 
 def make_back_buf_system(DEPTH: int = 3, WIDTH: int = 64,
-                         output_directory: str = None):
+                         output_directory: str | None = None):
     top = make_back_buf(DEPTH, WIDTH)
     return System([top], name="back_buf",
                   output_directory=output_directory or "build/back_buf")

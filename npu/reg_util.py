@@ -14,7 +14,7 @@
 import inspect
 
 from pycde.constructs import NamedWire
-from pycde.dialects import comb, seq
+from pycde.dialects import seq
 from pycde.types import Bits
 
 
@@ -53,15 +53,15 @@ def _caller_name(default: str) -> str:
     try:
         frame = inspect.stack()[2]
         return frame.code_context[0].split("=")[0].strip() or default
-    except Exception:
+    except (IndexError, AttributeError, TypeError):
         return default
 
 
-def wire(bits_w: int, name: str = None):
+def wire(bits_w: int, name: str | None = None):
     return NamedWire(Bits(bits_w), name or _caller_name(f"w_{bits_w}"))
 
 
-def async_reg(next_value, clk, rst_n, name: str = None):
+def async_reg(next_value, clk, rst_n, name: str | None = None):
     """Register `next_value` with async active-low reset to zero.
 
     Mirrors: always_ff @(posedge clk or negedge rst_n) if (!rst_n) q <= '0;
@@ -74,7 +74,7 @@ def async_reg(next_value, clk, rst_n, name: str = None):
                         isAsync=True).result
 
 
-def sync_reg(next_value, clk, rst_n, name: str = None):
+def sync_reg(next_value, clk, rst_n, name: str | None = None):
     """Same as async_reg but with a synchronous reset (seq default)."""
     w = next_value.type.width
     return seq.FirRegOp(next_value.value, clk.value, name or "reg",

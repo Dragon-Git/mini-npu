@@ -1,0 +1,23 @@
+# ruff configuration for mini-npu
+# Blocking rules: real bugs (undefined names, unused vars/imports, bad
+# imports). Style-only rules are not enforced.
+
+line-length = 88
+target-version = "py312"
+
+[lint]
+select = [
+    "E9",      # syntax errors
+    "F",       # pyflakes: F821 undefined name, F401 unused import, F841 unused var
+    "I",       # import sorting
+    "RUF013",  # implicit Optional
+    "RUF022",  # sorted __all__
+    "RUF100",  # unused noqa
+    "SIM115",  # open without context manager
+    "PLW1510", # subprocess.run without check
+    "BLE001",  # blind except
+]
+ignore = []
+
+[lint.per-file-ignores]
+"test/*" = ["PLW1510"]  # tests intentionally check returncode manually

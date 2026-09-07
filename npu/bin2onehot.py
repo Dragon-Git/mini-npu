@@ -10,7 +10,7 @@
 # plumbing and carry no logic; we keep identically-named (unused) ports so
 # the port lists of gold and gate line up for EQY.
 
-from pycde import Clock, Module, System
+from pycde import Clock, Input, Module, Output, System, generator
 from pycde.types import Bits
 
 from .common import clog2
@@ -39,7 +39,7 @@ def make_bin2onehot(ONEHOT_W: int = 128):
     return Bin2Onehot
 
 
-def make_bin2onehot_system(ONEHOT_W: int = 128, output_directory: str = None):
+def make_bin2onehot_system(ONEHOT_W: int = 128, output_directory: str | None = None):
     top = make_bin2onehot(ONEHOT_W)
     return System([top], name="bin2onehot",
                   output_directory=output_directory or "build/bin2onehot")

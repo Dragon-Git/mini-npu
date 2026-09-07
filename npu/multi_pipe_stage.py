@@ -15,7 +15,7 @@
 #   s_valid/s_data <= (async reset 0) nxt_valid / (in_valid&&in_ready ? in_data : s_data)
 #   out_valid_o = s_valid ; out_data_o = s_data
 
-from pycde import Clock, Module, System
+from pycde import Clock, Input, Module, Output, System, generator
 from pycde.constructs import Wire
 from pycde.types import Bits
 
@@ -78,7 +78,7 @@ def make_multi_pipe_stage(WIDTH: int = 64, NUM_READERS: int = 2):
 
 
 def make_multi_pipe_stage_system(WIDTH: int = 64, NUM_READERS: int = 2,
-                                 output_directory: str = None):
+                                 output_directory: str | None = None):
     top = make_multi_pipe_stage(WIDTH, NUM_READERS)
     return System([top], name="multi_pipe_stage",
                   output_directory=output_directory or "build/multi_pipe_stage")

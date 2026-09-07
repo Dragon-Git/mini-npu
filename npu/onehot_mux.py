@@ -12,7 +12,7 @@
 # (element 0 at the LSB end). The gold wrapper (make_gold_renames.py)
 # provides the matching packed view on the ARM side.
 
-from pycde import Clock, Module, System
+from pycde import Clock, Input, Module, Output, System, generator
 from pycde.types import Bits
 
 from .common import zero
@@ -44,7 +44,7 @@ def make_onehot_mux(N: int = 4, W: int = 8):
     return OnehotMux
 
 
-def make_onehot_mux_system(N: int = 4, W: int = 8, output_directory: str = None):
+def make_onehot_mux_system(N: int = 4, W: int = 8, output_directory: str | None = None):
     top = make_onehot_mux(N, W)
     return System([top], name="onehot_mux",
                   output_directory=output_directory or "build/onehot_mux")

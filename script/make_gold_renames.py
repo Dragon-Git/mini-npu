@@ -40,15 +40,15 @@ MODULES = {
 
 def rename_module(text: str, old: str, new: str, overrides: dict) -> str:
     m = re.search(rf"module\s+{old}\s*#\((.*?)\)\s*\((.*?)\);",
-                  text, re.S)
+                  text, re.DOTALL)
     if not m:
         # no parameter port list:  module X  <imports...> ( ports );
-        m = re.search(rf"module\s+{old}\b(.*?\);)", text, re.S)
+        m = re.search(rf"module\s+{old}\b(.*?\);)", text, re.DOTALL)
         assert m, f"cannot find module {old}"
         ports_src = m.group(1)
         header = f"module {new}{ports_src}"
     else:
-        params_src, ports_src = m.group(1), m.group(2)
+        ports_src = m.group(2)
         localparams = "".join(
             f"\n  localparam {k} = {v};" for k, v in overrides.items())
         header = (f"module {new} #() (\n{ports_src}\n);\n"
@@ -67,7 +67,8 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     for name, (src, overrides) in MODULES.items():
         path = os.path.join(REF, src)
-        text = open(path).read()
+        with open(path) as fh:
+            text = fh.read()
         if name == "stream_len":
             old = "ethosu55_dma_stream_len"
         else:
