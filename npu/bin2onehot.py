@@ -33,8 +33,8 @@ def make_bin2onehot(ONEHOT_W: int = 128):
             parts = []
             for v in range(ONEHOT_W):
                 parts.append((bin_v == Bits(BIN_W)(v)).as_bits(1))
-            # Bits.concat takes a list ordered MSB-first.
-            ports.vec_o = Bits.concat(list(reversed(parts)))
+            # BitVectorSignal.concat takes a list ordered MSB-first.
+            ports.vec_o = bin_v.concat(list(reversed(parts)))
 
     return Bin2Onehot
 
