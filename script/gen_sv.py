@@ -14,10 +14,15 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from npu import (  # noqa: E402
-    make_bin2onehot_system, make_onehot_mux_system, make_rr_arb_system,
-    make_rr_reg_arb_system, make_or_tree_w6_system, make_back_buf_system,
-    make_reg_fifo_system, make_multi_pipe_stage_system,
+from npu import (
+    make_back_buf_system,
+    make_bin2onehot_system,
+    make_multi_pipe_stage_system,
+    make_onehot_mux_system,
+    make_or_tree_w6_system,
+    make_reg_fifo_system,
+    make_rr_arb_system,
+    make_rr_reg_arb_system,
     make_stream_len_system,
 )
 
