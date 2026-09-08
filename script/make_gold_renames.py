@@ -39,6 +39,12 @@ MODULES = {
 
 
 def rename_module(text: str, old: str, new: str, overrides: dict) -> str:
+    # Pure-comb modules: the gate side has no asrt_* ports, so strip them
+    # from the gold port list too (EQY requires matching port lists).
+    m_asrt = re.search(r"^\s*input\s+wire\s+asrt_clk,\n\s*input\s+wire\s+asrt_rst_n,\n",
+                       text, re.MULTILINE)
+    if m_asrt:
+        text = text[:m_asrt.start()] + text[m_asrt.end():]
     m = re.search(rf"module\s+{old}\s*#\((.*?)\)\s*\((.*?)\);",
                   text, re.DOTALL)
     if not m:
@@ -75,6 +81,11 @@ def main():
             old = "ethosu55_" + name
         new = f"{name}_gold"
         out = rename_module(text, old, new, overrides)
+        # rr_reg_arb instantiates ethosu55_rr_arb with .asrt_* hooks; the
+        # renamed copy no longer has that module's asrt ports.
+        if name == "rr_reg_arb":
+            out = re.sub(r"\n\s*\.asrt_clk\s*\(clk\),\n\s*\.asrt_rst_n\s*\(reset_n\),",
+                         "", out)
         dst = os.path.join(OUT, f"{name}_gold.sv")
         with open(dst, "w") as f:
             f.write(out)
